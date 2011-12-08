@@ -1,5 +1,9 @@
 package proto
 
+type Type interface {
+	String() string
+}
+
 type Integer int64
 type Bulk struct {
 	Nil  bool   // Nil Bulk
@@ -7,7 +11,7 @@ type Bulk struct {
 }
 type MultiBulk struct {
 	Nil       bool   // Nil Multi-Bulk
-	MultiBulk []Bulk // Multi-Bulk content
+	MultiBulk []Type // Multi-Bulk content
 }
 type Status string
 type Error string
@@ -32,8 +36,8 @@ func (m MultiBulk) String() string {
 		return "*0"
 	}
 	s := "*" + itoa(int64(len(m.MultiBulk))) + "\r\n"
-	for _, bulk := range m.MultiBulk {
-		s += bulk.String()
+	for _, c := range m.MultiBulk {
+		s += c.String()
 	}
 	return s
 }

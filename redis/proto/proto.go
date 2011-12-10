@@ -100,7 +100,6 @@ func Command(args ...string) Object {
 	return o
 }
 
-
 // Convert object to int64. Returns ErrNotIntegerableObject error for List,
 // Status and Error Kinds of object. Integer objects are int64 behind the
 // scenes already. Bulk objects (String-Kind object) are run through

@@ -1,10 +1,6 @@
 package proto
 
-import (
-	"bufio"
-	"strings"
-	"testing"
-)
+import "testing"
 
 type objectSerialisationTest struct {
 	in  Object
@@ -13,19 +9,19 @@ type objectSerialisationTest struct {
 
 var objectSerialisationTestData = []objectSerialisationTest{
 	{
-		bulk{false, []byte("hello")},
+		bulk{false, "hello"},
 		"$5\r\nhello\r\n",
 	},
 	{
-		bulk{false, []byte{}},
+		bulk{false, ""},
 		"$0\r\n\r\n",
 	},
 	{
-		bulk{true, nil},
+		bulk{true, ""},
 		"$-1\r\n",
 	},
 	{
-		bulk{true, []byte("This stuff is ignored because of .isNil")},
+		bulk{true, "This stuff is ignored because of .isNil"},
 		"$-1\r\n",
 	},
 	{
@@ -35,7 +31,7 @@ var objectSerialisationTestData = []objectSerialisationTest{
 	{
 		multiBulk{true, []Object{
 			integer(42),
-			bulk{false, []byte("Ignored too, because of .isNil")},
+			bulk{false, "Ignored too, because of .isNil"},
 		}},
 		"*-1\r\n",
 	},
@@ -45,8 +41,8 @@ var objectSerialisationTestData = []objectSerialisationTest{
 	},
 	{
 		multiBulk{false, []Object{
-			bulk{false, []byte("Hello, ")},
-			bulk{false, []byte("World!")},
+			bulk{false, "Hello, "},
+			bulk{false, "World!"},
 		}},
 		"*2\r\n" +
 			"$7\r\nHello, \r\n" +
@@ -54,9 +50,9 @@ var objectSerialisationTestData = []objectSerialisationTest{
 	},
 	{
 		multiBulk{false, []Object{
-			bulk{false, []byte("Hello, ")},
-			bulk{true, nil},
-			bulk{false, []byte("World!")},
+			bulk{false, "Hello, "},
+			bulk{true, ""},
+			bulk{false, "World!"},
 		}},
 		"*3\r\n" +
 			"$7\r\nHello, \r\n" +
@@ -65,9 +61,9 @@ var objectSerialisationTestData = []objectSerialisationTest{
 	},
 	{
 		multiBulk{false, []Object{
-			bulk{false, []byte("Hello, ")},
+			bulk{false, "Hello, "},
 			integer(-42),
-			bulk{false, []byte("World!")},
+			bulk{false, "World!"},
 			error("Whoa!"),
 		}},
 		"*4\r\n" +
@@ -84,34 +80,37 @@ var objectSerialisationTestData = []objectSerialisationTest{
 		error("Something something"),
 		"-Something something\r\n",
 	},
+	{
+		Command("HSET", "key", "field", "some \r\n unsafe \x00 stuff"),
+		"*4\r\n" +
+			"$4\r\nHSET\r\n" +
+			"$3\r\nkey\r\n" +
+			"$5\r\nfield\r\n" +
+			"$22\r\nsome \r\n unsafe \x00 stuff\r\n",
+	},
 }
 
 func TestObjectSerialisation(t *testing.T) {
 	for i, test := range objectSerialisationTestData {
-		if test.out != test.in.string() {
+		if test.out != test.in.repr() {
 			t.Errorf("#%d: Bad result: %#v (expected %#v)",
-				i, test.in.string(), test.out)
+				i, test.in.repr(), test.out)
 		}
 	}
 }
 
-func TestReadInteger(t *testing.T) {
-	r := bufio.NewReader(strings.NewReader(":-32\r\n"))
-	o, err := readObject(r)
-	if err != nil {
-		t.Errorf("readObject() failed: %s", err.String())
-		return
+func assertKind(t *testing.T, o Object, ot ObjectKind) {
+	if Kind(o) != ot {
+		t.Errorf("Unexpected ObjectKind %v (expected %v)", Kind(o), ot)
 	}
-	if o.Type() != Integer {
-		t.Errorf("Unexpected ObjectType: %v (expected %v)", o.Type(), Integer)
-		return
-	}
-	i, err := o.Integer()
-	if err != nil {
-		t.Errorf("Object.Integer() failed: %s", err.String())
-		return
-	}
-	if int64(i) != int64(-32) {
-		t.Errorf("Bad readInteger() result: %d (expected -32)", i)
-	}
+}
+
+func TestObjectKinds(t *testing.T) {
+	assertKind(t, integer(-42), Integer)
+	assertKind(t, bulk{false, ""}, String)
+	assertKind(t, bulk{true, "nil"}, String)
+	assertKind(t, multiBulk{false, []Object{integer(0)}}, List)
+	assertKind(t, multiBulk{true, nil}, List)
+	assertKind(t, status("OK"), Status)
+	assertKind(t, error("Some error."), Error)
 }

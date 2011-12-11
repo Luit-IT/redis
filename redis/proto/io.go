@@ -71,7 +71,8 @@ func (r *Reader) readLine() (string, os.Error) {
 		}
 		buf = append(buf, c)
 	}
-	panic("unreachable!")
+	panic("THIS ... SENTENCE ... IS ... FALSE! " +
+		"*dontthinkaboutitdontthinkaboutitdontthinkaboutit*")
 }
 
 // Read an Object from the underlying io.Reader
@@ -121,9 +122,6 @@ func (r *Reader) Read() (Object, os.Error) {
 			if err != nil {
 				return nil, err
 			}
-			if Kind(o) == List {
-				return nil, ErrNestedMultiBulk
-			}
 			buf[x] = o
 		}
 		return multiBulk{false, buf}, nil
@@ -147,7 +145,7 @@ type Writer struct {
 	w io.Writer
 }
 
-// Wrap an io.Writer to be a ble to write Objects to it.
+// Wrap an io.Writer to be able to write Objects to it.
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
 // Write the wire representation of Object to the underlying io.Writer

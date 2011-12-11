@@ -9,7 +9,6 @@ var (
 	ErrNotStringableObject  os.Error = &RedisProtocolError{"Not an Integer, String, Status or Error ObjectKind"}
 	ErrNotListObject        os.Error = &RedisProtocolError{"Not a List ObjectKind"}
 	ErrInt64ReadSize        os.Error = &RedisProtocolError{"integer can't be this big"}
-	ErrNestedMultiBulk      os.Error = &RedisProtocolError{"nested/unexpected multi-bulk"}
 	ErrProtocolError        os.Error = &RedisProtocolError{"protocol error"}
 )
 

@@ -6,14 +6,14 @@ import (
 	"strconv"
 )
 
-type ObjectReader struct {
+type objectReader struct {
 	r io.Reader
 }
 
 // Wrap an io.Reader to be able to read Objects from it.
-func NewObjectReader(r io.Reader) *ObjectReader { return &ObjectReader{r: r} }
+func newObjectReader(r io.Reader) *objectReader { return &objectReader{r: r} }
 
-func (r *ObjectReader) readByte() (c byte, err os.Error) {
+func (r *objectReader) readByte() (c byte, err os.Error) {
 	br, ok := r.r.(io.ByteReader)
 	if ok {
 		return br.ReadByte()
@@ -28,7 +28,7 @@ func (r *ObjectReader) readByte() (c byte, err os.Error) {
 	return p[0], nil
 }
 
-func (r *ObjectReader) readInt64() (int64, os.Error) {
+func (r *objectReader) readInt64() (int64, os.Error) {
 	// TODO: Need I be more accurate? 20 would be a tighter fit (2 ^ 63 is
 	// a 19 (base 10) character long number, +1 for detecting the '\r')
 	buf := make([]byte, 32)
@@ -52,7 +52,7 @@ func (r *ObjectReader) readInt64() (int64, os.Error) {
 	return 0, ErrInt64ReadSize
 }
 
-func (r *ObjectReader) readLine() (string, os.Error) {
+func (r *objectReader) readLine() (string, os.Error) {
 	buf := make([]byte, 0)
 	for {
 		c, err := r.readByte()
@@ -76,7 +76,7 @@ func (r *ObjectReader) readLine() (string, os.Error) {
 }
 
 // Read an Object from the underlying io.Reader
-func (r *ObjectReader) ReadObject() (Object, os.Error) {
+func (r *objectReader) readObject() (Object, os.Error) {
 	c, err := r.readByte()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (r *ObjectReader) ReadObject() (Object, os.Error) {
 		}
 		buf := make([]Object, l)
 		for x := range buf {
-			o, err := r.ReadObject()
+			o, err := r.readObject()
 			if err != nil {
 				return nil, err
 			}
@@ -141,15 +141,15 @@ func (r *ObjectReader) ReadObject() (Object, os.Error) {
 	return nil, ErrProtocolError
 }
 
-type ObjectWriter struct {
+type objectWriter struct {
 	w io.Writer
 }
 
 // Wrap an io.Writer to be able to write Objects to it.
-func NewObjectWriter(w io.Writer) *ObjectWriter { return &ObjectWriter{w: w} }
+func newObjectWriter(w io.Writer) *objectWriter { return &objectWriter{w: w} }
 
 // Write the wire representation of Object to the underlying io.Writer
-func (w *ObjectWriter) WriteObject(o Object) os.Error {
+func (w *objectWriter) writeObject(o Object) os.Error {
 	s := o.repr()
 	n, err := w.w.Write([]byte(s))
 	if n == len(s) {

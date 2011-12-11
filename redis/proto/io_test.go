@@ -10,8 +10,8 @@ func TestWriteObjects(t *testing.T) {
 	// TestObjectSerialisation
 	for i, test := range objectSerialisationTestData {
 		buf := bytes.NewBuffer([]byte{})
-		w := &Writer{w: buf}
-		err := w.Write(test.in)
+		w := &ObjectWriter{w: buf}
+		err := w.WriteObject(test.in)
 		if err != nil {
 			t.Fatalf("#%d: Write failed: %s", i, err)
 		}

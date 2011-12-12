@@ -45,7 +45,7 @@ func (r *objectReader) readInt64() (int64, os.Error) {
 			if nc != '\n' {
 				return 0, ErrProtocolError
 			}
-			return strconv.Atoi64(string(buf[:x-1]))
+			return strconv.Atoi64(string(buf[:x]))
 		}
 		buf[x] = c
 	}

@@ -11,7 +11,7 @@ import (
 type Conn struct {
 	objectReader
 	objectWriter
-	p textproto.Pipeline
+	textproto.Pipeline
 	conn io.ReadWriteCloser
 }
 
@@ -36,15 +36,23 @@ func Dial(network, addr string) (*Conn, os.Error) {
 }
 
 func (c *Conn) WriteRequest(o Object) (uint, os.Error) {
-	id := c.p.Next()
-	c.p.StartRequest(id)
-	defer c.p.EndRequest(id)
-	return id, c.writeObject(o)
+	id := c.Next()
+	c.StartRequest(id)
+	defer c.EndRequest(id)
+	err := c.objectWriter.writeObject(o)
+	if err != nil {
+		return 0, err
+	}
+	if bw, ok := c.w.(*bufio.Writer); ok {
+		go bw.Flush()
+	}
+	return id, nil
+
 }
 
 func (c *Conn) ReadResponse(id uint) (Object, os.Error) {
-	c.p.StartResponse(id)
-	defer c.p.EndResponse(id)
+	c.StartResponse(id)
+	defer c.EndResponse(id)
 	return c.readObject()
 }
 

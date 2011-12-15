@@ -56,40 +56,78 @@ func (e error) repr() string {
 type ObjectKind int
 
 const (
-	// Integer reply
-	Integer ObjectKind = iota
-	// Bulk reply
-	String
-	// Multi-Bulk reply, or a Command
-	List
-	// Status reply
-	Status
-	// Error reply
-	Error
+	Integer ObjectKind = iota // Integer reply
+	String                    // Bulk reply
+	List                      // Multi-Bulk reply or a Command (request)
+	Status                    // Status reply
+	Error                     // Error reply
 )
 
 // A Redis protocol object, being either a request (i.e. command) or a
 // response.
 type Object interface {
-	repr() string // Method to get wire format representation
+	repr() string               // Method to get wire format representation
+	Kind() ObjectKind           // Method to get the ObjectKind of Object
+	Integer() (int64, os.Error) // Method to get the integer value of Object
+	String() (string, os.Error) // Method to get the string value of Object
+	List() ([]Object, os.Error) // Method to get the list of Objects out of Object with ObjectKind List
+	Nil() bool                  // Method to see if Object with ObjectKind String or List is nil
 }
 
-// Find out what type of Object you're dealing with.
-func Kind(o Object) ObjectKind {
-	switch o.(type) {
-	case integer:
-		return Integer
-	case bulk:
-		return String
-	case multiBulk:
-		return List
-	case status:
-		return Status
-	case error:
-		return Error
+// func (o Object) Kind() methods
+
+func (i integer) Kind() ObjectKind   { return Integer }
+func (b bulk) Kind() ObjectKind      { return String }
+func (m multiBulk) Kind() ObjectKind { return List }
+func (s status) Kind() ObjectKind    { return Status }
+func (e error) Kind() ObjectKind     { return Error }
+
+// func (o Object) Nil() methods
+
+func (i integer) Nil() bool   { return false } // Shouldn't be called on this type
+func (b bulk) Nil() bool      { return b.isNil }
+func (m multiBulk) Nil() bool { return m.isNil }
+func (s status) Nil() bool    { return false } // Shouldn't be called on this type
+func (e error) Nil() bool     { return false } // Shouldn't be called on this type
+
+// func (o Object) Integer() methods
+
+func (i integer) Integer() (int64, os.Error) { return int64(i), nil }
+func (b bulk) Integer() (int64, os.Error) {
+	if b.isNil {
+		return 0, ErrIsNilBulk
 	}
-	panic("Object isn't a proper Redis object")
+	return strconv.Atoi64(b.bulk)
 }
+func (m multiBulk) Integer() (int64, os.Error) { return 0, ErrNotIntegerableObject }
+func (s status) Integer() (int64, os.Error)    { return 0, ErrNotIntegerableObject }
+func (e error) Integer() (int64, os.Error)     { return 0, ErrNotIntegerableObject }
+
+// func (o Object) String() methods
+
+func (i integer) String() (string, os.Error) { return strconv.Itoa64(int64(i)), nil }
+func (b bulk) String() (string, os.Error) {
+	if b.isNil {
+		return "", ErrIsNilBulk
+	}
+	return string(b.bulk), nil
+}
+func (m multiBulk) String() (string, os.Error) { return "", ErrNotStringableObject }
+func (s status) String() (string, os.Error)    { return string(s), nil }
+func (e error) String() (string, os.Error)     { return string(e), nil }
+
+// func (o Object) List() methods
+
+func (i integer) List() ([]Object, os.Error) { return nil, ErrNotListObject }
+func (b bulk) List() ([]Object, os.Error)    { return nil, ErrNotListObject }
+func (m multiBulk) List() ([]Object, os.Error) {
+	if m.isNil {
+		return nil, ErrIsNilMultiBulk
+	}
+	return m.multiBulk, nil
+}
+func (s status) List() ([]Object, os.Error) { return nil, ErrNotListObject }
+func (e error) List() ([]Object, os.Error)  { return nil, ErrNotListObject }
 
 // Create a request object.
 func Command(args ...string) Object {
@@ -98,65 +136,6 @@ func Command(args ...string) Object {
 		o.multiBulk[x] = bulk{false, args[x]}
 	}
 	return o
-}
-
-
-// Convert object to int64. Returns ErrNotIntegerableObject error for List,
-// Status and Error Kinds of object. Integer objects are int64 behind the
-// scenes already. Bulk objects (String-Kind object) are run through
-// strconv.Atoi64 and return accordingly. With nil bulk this returns an
-// ErrIsNilBulk error.
-func ObjectInteger(o Object) (int64, os.Error) {
-	switch v := o.(type) {
-	case integer:
-		return int64(v), nil
-	case bulk:
-		if v.isNil {
-			return 0, ErrIsNilBulk
-		}
-		return strconv.Atoi64(v.bulk)
-	}
-	return 0, ErrNotIntegerableObject
-}
-
-// Convert objects to string. Doesn't work on List-Kind objects. Integer
-// objects are converted through strconv.Itoa64. Nil bulk objects return an
-// ErrIsNilBulk error.
-func ObjectString(o Object) (string, os.Error) {
-	switch v := o.(type) {
-	case integer:
-		return strconv.Itoa64(int64(v)), nil
-	case bulk:
-		if v.isNil {
-			return "", ErrIsNilBulk
-		}
-		return v.bulk, nil
-	case status:
-	case error:
-		return string(v), nil
-	}
-	return "", ErrNotStringableObject
-}
-
-// Convert object to []Object. Only works on List-Kind objects.
-func ObjectList(o Object) ([]Object, os.Error) {
-	switch v := o.(type) {
-	case multiBulk:
-		return v.multiBulk, nil
-	}
-	return nil, ErrNotListObject
-}
-
-// Check if object is Nil
-func IsNil(o Object) bool {
-	switch v := o.(type) {
-	case bulk:
-		return v.isNil
-	case multiBulk:
-		return v.isNil
-	}
-	// TODO: should this be false, or error?
-	return false
 }
 
 // Some simple checks to make sure the Object interface is satisfied

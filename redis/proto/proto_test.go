@@ -99,9 +99,9 @@ func TestObjectSerialisation(t *testing.T) {
 	}
 }
 
-func assertKind(t *testing.T, o Object, ot ObjectKind) {
-	if Kind(o) != ot {
-		t.Errorf("Unexpected ObjectKind %v (expected %v)", Kind(o), ot)
+func assertKind(t *testing.T, o Object, ok ObjectKind) {
+	if o.Kind() != ok {
+		t.Errorf("Unexpected ObjectKind %v (expected %v)", o.Kind(), ok)
 	}
 }
 
